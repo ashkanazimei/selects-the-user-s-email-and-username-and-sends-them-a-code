@@ -1,0 +1,1392 @@
+ دارید. front-end و back-end  برای طراحی چنین وب‌سایتی، شما نیاز به ترکیبی از فناوری‌های 
+. در اینجا یک راه‌حل کامل ارائه می‌دهم:
+
+1. ساختار Front-End (HTML + CSS + JavaScript)
+فایل index.html:
+html
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ثبت نام</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h2>ثبت نام</h2>
+            <form id="registrationForm">
+                <div class="form-group">
+                    <label for="username">نام کاربری:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">ایمیل:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <button type="submit" class="btn">ارسال کد تایید</button>
+            </form>
+        </div>
+
+        <div class="verification-container" id="verificationSection" style="display: none;">
+            <h2>تایید ایمیل</h2>
+            <p>کد تایید به ایمیل شما ارسال شد</p>
+            <form id="verificationForm">
+                <div class="form-group">
+                    <label for="verificationCode">کد تایید:</label>
+                    <input type="text" id="verificationCode" name="verificationCode" required>
+                </div>
+                <button type="submit" class="btn">تایید</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+فایل style.css:
+css
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.container {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.form-container h2, .verification-container h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+    font-weight: 500;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.verification-container {
+    text-align: center;
+}
+
+.verification-container p {
+    margin-bottom: 20px;
+    color: #666;
+}
+2. JavaScript (Front-End)
+فایل script.js:
+javascript
+document.getElementById('registrationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
+    
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, email })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // نمایش بخش تایید کد
+            document.getElementById('registrationForm').style.display = 'none';
+            document.getElementById('verificationSection').style.display = 'block';
+            alert('کد تایید به ایمیل شما ارسال شد');
+        } else {
+            alert(data.message || 'خطا در ثبت نام');
+        }
+    } catch (error) {
+        alert('خطا در ارتباط با سرور');
+    }
+});
+
+document.getElementById('verificationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const code = document.getElementById('verificationCode').value;
+    const email = document.getElementById('email').value;
+    
+    try {
+        const response = await fetch('/api/verify', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, code })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('ایمیل با موفقیت تایید شد!');
+            // ریدایرکت به صفحه اصلی یا انجام عملیات بعدی
+        } else {
+            alert(data.message || 'کد تایید نامعتبر است');
+        }
+    } catch (error) {
+        alert('خطا در ارتباط با سرور');
+    }
+});
+3. Back-End (Node.js + Express)
+فایل server.js:
+javascript
+const express = require('express');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+const bodyParser = require('body-parser');
+const path = require('path');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ذخیره موقت کدهای تایید
+const verificationCodes = new Map();
+
+// پیکربندی ایمیل (برای Gmail)
+const transporter = nodemailer.createTransporter({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER, // ایمیل شما
+        pass: process.env.EMAIL_PASS  // پسورد اپلیکیشن
+    }
+});
+
+// تولید کد تایید ۶ رقمی
+function generateVerificationCode() {
+    return crypto.randomInt(100000, 999999).toString();
+}
+
+// Route ثبت نام و ارسال کد تایید
+app.post('/api/register', async (req, res) => {
+    const { username, email } = req.body;
+    
+    // اعتبارسنجی اولیه
+    if (!username || !email) {
+        return res.status(400).json({ message: 'نام کاربری و ایمیل الزامی است' });
+    }
+    
+    // تولید کد تایید
+    const verificationCode = generateVerificationCode();
+    
+    // ذخیره کد (بهتر است در دیتابیس ذخیره شود)
+    verificationCodes.set(email, {
+        code: verificationCode,
+        username: username,
+        expires: Date.now() + 10 * 60 * 1000 // 10 دقیقه اعتبار
+    });
+    
+    // ارسال ایمیل
+    try {
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'کد تایید ثبت نام',
+            html: `
+                <div style="font-family: Arial, sans-serif; text-align: center;">
+                    <h2>کد تایید ثبت نام</h2>
+                    <p>کاربر گرامی ${username},</p>
+                    <p>کد تایید شما:</p>
+                    <h1 style="color: #667eea; font-size: 32px;">${verificationCode}</h1>
+                    <p>این کد به مدت ۱۰ دقیقه معتبر است</p>
+                </div>
+            `
+        });
+        
+        res.json({ message: 'کد تایید ارسال شد' });
+    } catch (error) {
+        console.error('خطا در ارسال ایمیل:', error);
+        res.status(500).json({ message: 'خطا در ارسال ایمیل' });
+    }
+});
+
+// Route تایید کد
+app.post('/api/verify', (req, res) => {
+    const { email, code } = req.body;
+    
+    const verificationData = verificationCodes.get(email);
+    
+    if (!verificationData) {
+        return res.status(400).json({ message: 'کد تایید یافت نشد' });
+    }
+    
+    if (Date.now() > verificationData.expires) {
+        verificationCodes.delete(email);
+        return res.status(400).json({ message: 'کد تایید منقضی شده است' });
+    }
+    
+    if (verificationData.code !== code) {
+        return res.status(400).json({ message: 'کد تایید نامعتبر است' });
+    }
+    
+    // کد صحیح است
+    verificationCodes.delete(email);
+    
+    // اینجا می‌توانید کاربر را در دیتابیس ذخیره کنید
+    res.json({ message: 'ایمیل با موفقیت تایید شد' });
+});
+
+app.listen(PORT, () => {
+    console.log(`سرور در پورت ${PORT} اجرا شد`);
+});
+4. فایل package.json
+json
+{
+  "name": "email-verification-app",
+  "version": "1.0.0",
+  "description": "وب‌سایت ثبت نام با تایید ایمیل",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "nodemailer": "^6.9.4",
+    "body-parser": "^1.20.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
+5. راه‌اندازی
+پوشه‌ها را به این صورت ایجاد کنید:
+
+text
+project/
+├── public/
+│   ├── index.html
+│   ├── style.css
+│   └── script.js
+├── server.js
+└── package.json
+نصب پکیج‌ها:
+
+bash
+npm install
+تنظیم متغیرهای محیطی:
+
+bash
+export EMAIL_USER="your-email@gmail.com"
+export EMAIL_PASS="your-app-password"
+اجرای سرور:
+
+bash
+npm start
+نکات مهم:
+امنیت: برای محیط تولید، از HTTPS استفاده کنید
+
+دیتابیس: بهتر است اطلاعات در دیتابیس ذخیره شود
+
+Rate Limiting: برای جلوگیری از اسپم اضافه کنید
+
+اعتبارسنجی: اعتبارسنجی کامل در سمت سرور انجام دهید
+
+قالب ایمیل: قالب ایمیل را می‌توانید شخصی‌سازی کنید
+
+این یک ساختار پایه است که می‌توانید بر اساس نیازهای خود توسعه دهید.
+
+چه فایلهلیی باید ساخت
+برای پیاده‌سازی این وب‌سایت، شما نیاز به ایجاد فایل‌های زیر دارید:
+
+ساختار پوشه‌ها و فایل‌ها
+text
+email-verification-project/
+│
+├── public/                 # فایل‌های فرانت‌اند
+│   ├── index.html
+│   ├── style.css
+│   └── script.js
+│
+├── server.js              # فایل اصلی سرور
+├── package.json           # تنظیمات پروژه
+├── .env                   # متغیرهای محیطی (اختیاری)
+└── README.md              # راهنمای پروژه
+توضیح هر فایل:
+1. package.json - تنظیمات و وابستگی‌های پروژه
+json
+{
+  "name": "email-verification-website",
+  "version": "1.0.0",
+  "description": "وب‌سایت ثبت نام با تایید ایمیل",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "nodemailer": "^6.9.4",
+    "body-parser": "^1.20.2",
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["nodejs", "express", "email-verification"],
+  "author": "Your Name",
+  "license": "MIT"
+}
+2. server.js - سرور اصلی بک‌اند
+javascript
+const express = require('express');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+const bodyParser = require('body-parser');
+const path = require('path');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ذخیره موقت کدهای تایید (در پروژه واقعی از دیتابیس استفاده کنید)
+const verificationCodes = new Map();
+
+// پیکربندی ایمیل
+const transporter = nodemailer.createTransporter({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER || 'your-email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+    }
+});
+
+// تولید کد تایید ۶ رقمی
+function generateVerificationCode() {
+    return crypto.randomInt(100000, 999999).toString();
+}
+
+// Route اصلی
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Route ثبت نام و ارسال کد تایید
+app.post('/api/register', async (req, res) => {
+    const { username, email } = req.body;
+    
+    // اعتبارسنجی
+    if (!username || !email) {
+        return res.status(400).json({ 
+            success: false,
+            message: 'نام کاربری و ایمیل الزامی است' 
+        });
+    }
+
+    if (!email.includes('@')) {
+        return res.status(400).json({
+            success: false,
+            message: 'فرمت ایمیل نامعتبر است'
+        });
+    }
+    
+    try {
+        // تولید کد تایید
+        const verificationCode = generateVerificationCode();
+        
+        // ذخیره کد
+        verificationCodes.set(email, {
+            code: verificationCode,
+            username: username,
+            expires: Date.now() + 10 * 60 * 1000 // 10 دقیقه اعتبار
+        });
+        
+        // ارسال ایمیل
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER || 'your-email@gmail.com',
+            to: email,
+            subject: 'کد تایید ثبت نام',
+            html: `
+                <div dir="rtl" style="font-family: Tahoma, sans-serif; text-align: center; padding: 20px;">
+                    <h2 style="color: #333;">کد تایید ثبت نام</h2>
+                    <p>کاربر گرامی <strong>${username}</strong>,</p>
+                    <p>کد تایید شما برای ثبت نام:</p>
+                    <div style="background: #f8f9fa; padding: 15px; margin: 20px 0; border-radius: 8px;">
+                        <h1 style="color: #667eea; font-size: 36px; margin: 0;">${verificationCode}</h1>
+                    </div>
+                    <p style="color: #666; font-size: 14px;">این کد به مدت ۱۰ دقیقه معتبر است</p>
+                </div>
+            `
+        });
+        
+        res.json({ 
+            success: true,
+            message: 'کد تایید به ایمیل شما ارسال شد' 
+        });
+    } catch (error) {
+        console.error('خطا در ارسال ایمیل:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'خطا در ارسال ایمیل' 
+        });
+    }
+});
+
+// Route تایید کد
+app.post('/api/verify', (req, res) => {
+    const { email, code } = req.body;
+    
+    if (!email || !code) {
+        return res.status(400).json({
+            success: false,
+            message: 'ایمیل و کد تایید الزامی است'
+        });
+    }
+    
+    const verificationData = verificationCodes.get(email);
+    
+    if (!verificationData) {
+        return res.status(400).json({ 
+            success: false,
+            message: 'کد تایید یافت نشد' 
+        });
+    }
+    
+    if (Date.now() > verificationData.expires) {
+        verificationCodes.delete(email);
+        return res.status(400).json({ 
+            success: false,
+            message: 'کد تایید منقضی شده است' 
+        });
+    }
+    
+    if (verificationData.code !== code) {
+        return res.status(400).json({ 
+            success: false,
+            message: 'کد تایید نامعتبر است' 
+        });
+    }
+    
+    // کد صحیح است
+    verificationCodes.delete(email);
+    
+    res.json({ 
+        success: true,
+        message: 'ایمیل با موفقیت تایید شد!',
+        username: verificationData.username
+    });
+});
+
+// Route برای بررسی وضعیت سرور
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'OK',
+        timestamp: new Date().toISOString()
+    });
+});
+
+app.listen(PORT, () => {
+    console.log(`سرور در پورت ${PORT} اجرا شد`);
+    console.log(`آدرس: http://localhost:${PORT}`);
+});
+3. public/index.html - صفحه اصلی
+(همان فایل HTML که در پاسخ قبلی ارائه شد)
+
+4. public/style.css - استایل‌ها
+(همان فایل CSS که در پاسخ قبلی ارائه شد)
+
+5. public/script.js - JavaScript فرانت‌اند
+javascript
+// توابع کمکی
+function showMessage(message, type = 'info') {
+    alert(message); // می‌توانید با modal زیباتری جایگزین کنید
+}
+
+function showLoading(show = true) {
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+        btn.disabled = show;
+        btn.textContent = show ? 'در حال ارسال...' : btn.dataset.originalText;
+    });
+}
+
+// ثبت نام
+document.getElementById('registrationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value.trim();
+    const email = document.getElementById('email').value.trim();
+    
+    // اعتبارسنجی سمت کلاینت
+    if (!username || !email) {
+        showMessage('لطفا تمام فیلدها را پر کنید', 'error');
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        showMessage('لطفا یک ایمیل معتبر وارد کنید', 'error');
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, email })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // نمایش بخش تایید کد
+            document.getElementById('registrationForm').style.display = 'none';
+            document.getElementById('verificationSection').style.display = 'block';
+            showMessage(data.message, 'success');
+        } else {
+            showMessage(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showMessage('خطا در ارتباط با سرور', 'error');
+    } finally {
+        showLoading(false);
+    }
+});
+
+// تایید کد
+document.getElementById('verificationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const code = document.getElementById('verificationCode').value.trim();
+    const email = document.getElementById('email').value.trim();
+    
+    if (!code) {
+        showMessage('لطفا کد تایید را وارد کنید', 'error');
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        
+        const response = await fetch('/api/verify', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, code })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showMessage(data.message, 'success');
+            // ریدایرکت به صفحه موفقیت یا انجام عملیات بعدی
+            setTimeout(() => {
+                window.location.href = '/success.html'; // اگر صفحه موفقیت دارید
+            }, 2000);
+        } else {
+            showMessage(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showMessage('خطا در ارتباط با سرور', 'error');
+    } finally {
+        showLoading(false);
+    }
+});
+
+// ذخیره متن اصلی دکمه‌ها
+document.addEventListener('DOMContentLoaded', function() {
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+        btn.dataset.originalText = btn.textContent;
+    });
+});
+6. .env - متغیرهای محیطی (اختیاری)
+env
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+PORT=3000
+NODE_ENV=development
+7. README.md - راهنمای پروژه
+markdown
+# وب‌سایت تایید ایمیل
+
+یک وب‌سایت برای ثبت نام کاربران با قابلیت تایید ایمیل
+
+## نصب و راه‌اندازی
+
+1. نصب وابستگی‌ها:
+```bash
+npm install
+تنظیم ایمیل:
+
+فایل .env را ایجاد کنید
+
+اطلاعات ایمیل خود را وارد کنید
+
+اجرای پروژه:
+
+bash
+npm run dev  # برای توسعه
+npm start    # برای تولید
+ساختار پروژه
+public/ - فایل‌های فرانت‌اند
+
+server.js - سرور اصلی
+
+package.json - تنظیمات پروژه
+
+text
+
+## دستورات برای ایجاد پروژه:
+
+```bash
+# ایجاد پوشه پروژه
+mkdir email-verification-project
+cd email-verification-project
+
+# ایجاد پوشه public
+mkdir public
+
+# ایجاد فایل‌ها
+touch package.json server.js public/index.html public/style.css public/script.js .env README.md
+
+# نصب پکیج‌ها
+npm install
+این تمام فایل‌های لازم برای راه‌اندازی کامل پروژه است.
+
+چگونه باید ساخت این فایلهارا
+در اینجا راهنمای گام‌به‌گام برای ایجاد فایل‌های پروژه ارائه می‌دهم:
+
+روش 1: استفاده از دستورات ترمینال (Recommended)
+مرحله 1: ایجاد پوشه پروژه
+ویندوز:
+
+cmd
+mkdir email-verification-project
+cd email-verification-project
+mkdir public
+مک/لینوکس:
+
+bash
+mkdir email-verification-project
+cd email-verification-project
+mkdir public
+مرحله 2: ایجاد فایل‌ها با دستور
+ویندوز (Command Prompt):
+
+cmd
+type nul > package.json
+type nul > server.js
+type nul > .env
+type nul > README.md
+cd public
+type nul > index.html
+type nul > style.css
+type nul > script.js
+cd ..
+مک/لینوکس:
+
+bash
+touch package.json server.js .env README.md
+cd public
+touch index.html style.css script.js
+cd ..
+روش 2: ایجاد دستی فایل‌ها
+مرحله 1: ایجاد پوشه‌ها
+یک پوشه جدید به نام email-verification-project ایجاد کنید
+
+داخل آن پوشه‌ای به نام public ایجاد کنید
+
+مرحله 2: ایجاد فایل‌ها یکی‌یکی
+فایل 1: package.json
+در پوشه اصلی پروژه، راست‌کلیک کنید → New → Text Document
+
+نام آن را به package.json تغییر دهید
+
+با ویرایشگر متنی (VS Code, Notepad++, etc.) باز کنید
+
+محتوای زیر را کپی کنید:
+
+json
+{
+  "name": "email-verification-website",
+  "version": "1.0.0",
+  "description": "وب‌سایت ثبت نام با تایید ایمیل",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "nodemailer": "^6.9.4",
+    "body-parser": "^1.20.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["nodejs", "express", "email-verification"],
+  "author": "Your Name",
+  "license": "MIT"
+}
+فایل 2: server.js
+در پوشه اصلی، فایل جدیدی به نام server.js ایجاد کنید
+
+محتوای زیر را در آن کپی کنید:
+
+javascript
+const express = require('express');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+const bodyParser = require('body-parser');
+const path = require('path');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ذخیره موقت کدهای تایید
+const verificationCodes = new Map();
+
+// پیکربندی ایمیل (برای Gmail)
+const transporter = nodemailer.createTransporter({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER || 'your-email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+    }
+});
+
+// تولید کد تایید ۶ رقمی
+function generateVerificationCode() {
+    return crypto.randomInt(100000, 999999).toString();
+}
+
+// Route اصلی
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Route ثبت نام و ارسال کد تایید
+app.post('/api/register', async (req, res) => {
+    const { username, email } = req.body;
+    
+    // اعتبارسنجی
+    if (!username || !email) {
+        return res.status(400).json({ 
+            success: false,
+            message: 'نام کاربری و ایمیل الزامی است' 
+        });
+    }
+
+    if (!email.includes('@')) {
+        return res.status(400).json({
+            success: false,
+            message: 'فرمت ایمیل نامعتبر است'
+        });
+    }
+    
+    try {
+        // تولید کد تایید
+        const verificationCode = generateVerificationCode();
+        
+        // ذخیره کد
+        verificationCodes.set(email, {
+            code: verificationCode,
+            username: username,
+            expires: Date.now() + 10 * 60 * 1000 // 10 دقیقه اعتبار
+        });
+        
+        // ارسال ایمیل
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER || 'your-email@gmail.com',
+            to: email,
+            subject: 'کد تایید ثبت نام',
+            html: `
+                <div dir="rtl" style="font-family: Tahoma, sans-serif; text-align: center; padding: 20px;">
+                    <h2 style="color: #333;">کد تایید ثبت نام</h2>
+                    <p>کاربر گرامی <strong>${username}</strong>,</p>
+                    <p>کد تایید شما برای ثبت نام:</p>
+                    <div style="background: #f8f9fa; padding: 15px; margin: 20px 0; border-radius: 8px;">
+                        <h1 style="color: #667eea; font-size: 36px; margin: 0;">${verificationCode}</h1>
+                    </div>
+                    <p style="color: #666; font-size: 14px;">این کد به مدت ۱۰ دقیقه معتبر است</p>
+                </div>
+            `
+        });
+        
+        res.json({ 
+            success: true,
+            message: 'کد تایید به ایمیل شما ارسال شد' 
+        });
+    } catch (error) {
+        console.error('خطا در ارسال ایمیل:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'خطا در ارسال ایمیل' 
+        });
+    }
+});
+
+// Route تایید کد
+app.post('/api/verify', (req, res) => {
+    const { email, code } = req.body;
+    
+    if (!email || !code) {
+        return res.status(400).json({
+            success: false,
+            message: 'ایمیل و کد تایید الزامی است'
+        });
+    }
+    
+    const verificationData = verificationCodes.get(email);
+    
+    if (!verificationData) {
+        return res.status(400).json({ 
+            success: false,
+            message: 'کد تایید یافت نشد' 
+        });
+    }
+    
+    if (Date.now() > verificationData.expires) {
+        verificationCodes.delete(email);
+        return res.status(400).json({ 
+            success: false,
+            message: 'کد تایید منقضی شده است' 
+        });
+    }
+    
+    if (verificationData.code !== code) {
+        return res.status(400).json({ 
+            success: false,
+            message: 'کد تایید نامعتبر است' 
+        });
+    }
+    
+    // کد صحیح است
+    verificationCodes.delete(email);
+    
+    res.json({ 
+        success: true,
+        message: 'ایمیل با موفقیت تایید شد!',
+        username: verificationData.username
+    });
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 سرور در پورت ${PORT} اجرا شد`);
+    console.log(`📧 آدرس: http://localhost:${PORT}`);
+});
+فایل 3: public/index.html
+به پوشه public بروید
+
+فایل جدیدی به نام index.html ایجاد کنید
+
+محتوای زیر را کپی کنید:
+
+html
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ثبت نام - تایید ایمیل</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h2>ثبت نام</h2>
+            <form id="registrationForm">
+                <div class="form-group">
+                    <label for="username">نام کاربری:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">ایمیل:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <button type="submit" class="btn">ارسال کد تایید</button>
+            </form>
+        </div>
+
+        <div class="verification-container" id="verificationSection" style="display: none;">
+            <h2>تایید ایمیل</h2>
+            <p>کد تایید به ایمیل شما ارسال شد</p>
+            <form id="verificationForm">
+                <div class="form-group">
+                    <label for="verificationCode">کد تایید:</label>
+                    <input type="text" id="verificationCode" name="verificationCode" required maxlength="6">
+                </div>
+                <button type="submit" class="btn">تایید</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+فایل 4: public/style.css
+در پوشه public، فایل جدیدی به نام style.css ایجاد کنید
+
+محتوای زیر را کپی کنید:
+
+css
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.container {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.form-container h2, .verification-container h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+    font-weight: 500;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.verification-container {
+    text-align: center;
+}
+
+.verification-container p {
+    margin-bottom: 20px;
+    color: #666;
+}
+فایل 5: public/script.js
+در پوشه public، فایل جدیدی به نام script.js ایجاد کنید
+
+محتوای زیر را کپی کنید:
+
+javascript
+// توابع کمکی
+function showMessage(message, type = 'info') {
+    alert(message);
+}
+
+function showLoading(show = true) {
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+        btn.disabled = show;
+        if (show) {
+            btn.dataset.originalText = btn.textContent;
+            btn.textContent = 'در حال ارسال...';
+        } else {
+            btn.textContent = btn.dataset.originalText;
+        }
+    });
+}
+
+// ثبت نام
+document.getElementById('registrationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value.trim();
+    const email = document.getElementById('email').value.trim();
+    
+    // اعتبارسنجی سمت کلاینت
+    if (!username || !email) {
+        showMessage('لطفا تمام فیلدها را پر کنید', 'error');
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        showMessage('لطفا یک ایمیل معتبر وارد کنید', 'error');
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, email })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // نمایش بخش تایید کد
+            document.getElementById('registrationForm').style.display = 'none';
+            document.getElementById('verificationSection').style.display = 'block';
+            showMessage(data.message, 'success');
+        } else {
+            showMessage(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showMessage('خطا در ارتباط با سرور', 'error');
+    } finally {
+        showLoading(false);
+    }
+});
+
+// تایید کد
+document.getElementById('verificationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const code = document.getElementById('verificationCode').value.trim();
+    const email = document.getElementById('email').value.trim();
+    
+    if (!code) {
+        showMessage('لطفا کد تایید را وارد کنید', 'error');
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        
+        const response = await fetch('/api/verify', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, code })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showMessage(data.message + ' خوش آمدید ' + data.username, 'success');
+            // می‌توانید کاربر را به صفحه دیگری هدایت کنید
+        } else {
+            showMessage(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showMessage('خطا در ارتباط با سرور', 'error');
+    } finally {
+        showLoading(false);
+    }
+});
+فایل 6: .env (اختیاری)
+در پوشه اصلی، فایل جدیدی به نام .env ایجاد کنید
+
+محتوای زیر را کپی کنید:
+
+env
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+PORT=3000
+مرحله 3: نصب وابستگی‌ها
+ترمینال/CMD را در پوشه پروژه باز کنید
+
+دستور زیر را اجرا کنید:
+
+bash
+npm install
+مرحله 4: راه‌اندازی پروژه
+bash
+npm start
+یا برای حالت توسعه:
+
+bash
+npm run dev
+نکات مهم:
+ویرایشگر کد: استفاده از VS Code توصیه می‌شود
+
+Node.js: مطمئن شوید Node.js نصب است (node --version)
+
+ایمیل: برای ارسال ایمیل، باید پسورد اپلیکیشن Gmail بسازید
+
+پورت: اگر پورت 3000 заняد، سرور به طور خودکار پورت دیگری انتخاب می‌کند
+
+این پروژه اکنون آماده اجراست! 🚀
+
+نکات مهم رو برام بگو چجوری بفهمیم نود جی اس وصله و. اگه وصل نیست چه کنیم
+بررسی نصب بودن Node.js
+1. چگونه بفهمیم Node.js نصب است؟
+روش اول: دستور version در ترمینال
+
+bash
+node --version
+# یا
+node -v
+روش دوم: دستور npm version
+
+bash
+npm --version
+# یا
+npm -v
+خروجی مورد انتظار:
+
+text
+v18.17.0  # یا نسخه‌های دیگر
+روش سوم: تست مستقیم
+
+bash
+node -e "console.log('Node.js is installed!')"
+2. اگر Node.js نصب نیست:
+روش 1: دانلود از سایت رسمی
+به آدرس بروید: https://nodejs.org
+
+نسخه LTS (توصیه شده) را دانلود کنید
+
+فایل نصبی را اجرا کنید
+
+تمام گزینه‌ها را به صورت پیش‌فرض نگه دارید و Next بزنید
+
+روش 2: استفاده از Package Manager
+ویندوز (با Chocolatey):
+
+cmd
+choco install nodejs
+مک (با Homebrew):
+
+bash
+brew install node
+لینوکس (Ubuntu/Debian):
+
+bash
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+3. راه‌اندازی پروژه پس از نصب Node.js
+مرحله 1: بررسی نصب
+
+bash
+node --version
+npm --version
+مرحله 2: نصب وابستگی‌ها
+
+bash
+cd email-verification-project
+npm install
+مرحله 3: اجرای پروژه
+
+bash
+npm start
+4. تنظیمات ایمیل (مهم!)
+ساخت App Password در Gmail:
+به [حساب Google] خود بروید
+
+به بخش Security بروید
+
+2-Step Verification را فعال کنید
+
+در پایین صفحه، App passwords را پیدا کنید
+
+یک app password برای "Mail" ایجاد کنید
+
+پسورد ایجاد شده را در فایل .env قرار دهید:
+
+env
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-16-digit-app-password
+5. عیب‌یابی مشکلات رایج
+مشکل: Error: Cannot find module
+bash
+# حل: نصب مجدد وابستگی‌ها
+rm -rf node_modules
+rm package-lock.json
+npm install
+مشکل: پورت 3000 заняد
+bash
+# سرور به طور خودکار پورت بعدی را انتخاب می‌کند
+# یا در فایل .env پورت تغییر دهید:
+PORT=3001
+مشکل: ارسال ایمیل کار نمی‌کند
+مطمئن شوید 2-Step Verification فعال است
+
+از App Password (نه پسورد اصلی) استفاده کنید
+
+مطمئن شوید ایمیل درست است:
+
+javascript
+// در server.js چک کنید
+console.log('Email config:', {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS ? '***' : 'NOT SET'
+});
+6. تست سلامت پروژه
+تست 1: سرور اجرا می‌شود؟
+
+bash
+npm start
+خروجی باید باشد: 🚀 سرور در پورت 3000 اجرا شد
+
+تست 2: صفحه وب باز می‌شود؟
+در مرورگر بروید: http://localhost:3000
+
+تست 3: API کار می‌کند؟
+در مرورگر بروید: http://localhost:3000/api/health
+
+7. دستورات مفید برای توسعه
+bash
+# اجرای پروژه در حالت توسعه
+npm run dev
+
+# مشاهده وابستگی‌های نصب شده
+npm list
+
+# آپدیت پکیج‌ها
+npm update
+
+# حذف node_modules و نصب مجدد
+npm ci
+8. نکات امنیتی مهم
+هرگز فایل .env را در GitHub آپلود نکنید
+
+فایل .gitignore ایجاد کنید:
+
+gitignore
+node_modules/
+.env
+.DS_Store
+*.log
+9. اگر همچنان مشکل دارید:
+لاگ کامل خطاها را ببینید:
+javascript
+// در server.js به اول فایل اضافه کنید
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+تست ساده‌تر برای شروع:
+javascript
+// فایل test.js ایجاد کنید
+const http = require('http');
+
+const server = http.createServer((req, res) => {
+    res.writeHead(200, {'Content-Type': 'text/html'});
+    res.end('<h1>Hello Node.js!</h1>');
+});
+
+server.listen(3000, () => {
+    console.log('Server is running on http://localhost:3000');
+});
+اجرا کنید:
